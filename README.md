@@ -2,16 +2,13 @@
 
 Este repositorio almacena **todas las aplicaciones Android** (Kotlin) en un mismo lugar.
 
-- Cada carpeta de primer nivel (por ejemplo `app1/`, `app2/`, etc.) es un **proyecto independiente**.
+- Cada carpeta de primer nivel es un **proyecto independiente**.
 - La idea es poder trabajar, revisar historial y **deshacer cambios de un proyecto específico sin afectar al resto**.
 
-## Estructura
+## Proyectos
 
-> Ajusta esta sección si cambian los nombres reales de carpetas.
-
-- `/<proyecto-1>` – App Android 1
-- `/<proyecto-2>` – App Android 2
-- `/<proyecto-n>` – App Android N
+- `StudyBotIA/` – App: StudyBotIA
+- `app musica/` – App: Música
 
 ## Requisitos
 
@@ -23,177 +20,130 @@ Este repositorio almacena **todas las aplicaciones Android** (Kotlin) en un mism
 
 1. Abre Android Studio
 2. **File → Open…**
-3. Selecciona la carpeta del proyecto (por ejemplo `/<proyecto-1>`)
+3. Selecciona la carpeta del proyecto (por ejemplo `StudyBotIA/` o `app musica/`)
 
 > Si usas Gradle desde terminal: entra a la carpeta del proyecto y ejecuta las tareas desde ahí.
 
-## Git: trabajar por carpeta (proyecto) sin afectar al resto
+## Git: operar por carpeta (proyecto) sin afectar al resto
 
-La clave es **acotar** cualquier operación de Git a una ruta usando:
-
-- `-- <ruta>` al final del comando (pathspec)
-- o comandos que reescriben historial, pero **solo** para una carpeta
+La clave es **acotar** las operaciones de Git a una ruta usando `-- <ruta>` (pathspec).
 
 ### Ver historial de un proyecto (solo su carpeta)
 
 ```bash
-git log -- <carpeta-del-proyecto>/
+git log -- "<carpeta-del-proyecto>/"
+```
+
+Ejemplos:
+
+```bash
+git log -- "StudyBotIA/"
+git log -- "app musica/"
 ```
 
 Ver diferencias solo de una carpeta:
 
 ```bash
-git diff -- <carpeta-del-proyecto>/
+git diff -- "<carpeta-del-proyecto>/"
 ```
 
-### Deshacer cambios NO confirmados (working tree) de una carpeta
+### Descartar cambios LOCALES (sin commit) de una carpeta
 
-Descartar cambios locales de archivos modificados en esa carpeta:
+- Quitar cambios del **working tree** y del **staging** (dejar esa carpeta limpia):
 
 ```bash
-git restore --worktree --staged -- <carpeta-del-proyecto>/
+git restore --worktree --staged -- "<carpeta-del-proyecto>/"
 ```
 
-- `--worktree`: revierte el working tree
-- `--staged`: saca cambios del staging area
-
-Si solo quieres descartar lo NO staged:
+Solo descartar lo NO staged:
 
 ```bash
-git restore --worktree -- <carpeta-del-proyecto>/
+git restore --worktree -- "<carpeta-del-proyecto>/"
 ```
 
-Si solo quieres quitar del stage (manteniendo el archivo modificado):
+Solo sacar del stage (manteniendo modificaciones):
 
 ```bash
-git restore --staged -- <carpeta-del-proyecto>/
+git restore --staged -- "<carpeta-del-proyecto>/"
 ```
 
 ### Restaurar una carpeta a como estaba en un commit específico (sin tocar el resto)
 
-Esto "trae" el contenido de la carpeta desde un commit y lo aplica en tu rama actual (generando cambios que luego puedes commitear):
+Esto trae el contenido de la carpeta desde un commit y lo aplica en tu rama actual (luego commiteas solo esa carpeta):
 
 ```bash
-git restore --source <SHA_O_TAG> -- <carpeta-del-proyecto>/
+git restore --source <SHA_O_TAG> -- "<carpeta-del-proyecto>/"
 ```
 
-Ejemplo:
+Ejemplos:
 
 ```bash
-git restore --source a1b2c3d -- proyectoA/
+git restore --source a1b2c3d -- "StudyBotIA/"
+git restore --source a1b2c3d -- "app musica/"
 ```
 
-Luego confirmas solo esa carpeta:
+Luego confirma solo esa carpeta:
 
 ```bash
-git add proyectoA/
-git commit -m "Restore proyectoA to a1b2c3d"
+git add "<carpeta-del-proyecto>/"
+git commit -m "Rollback/Restore <carpeta-del-proyecto> to <SHA_O_TAG>"
 ```
 
-### Revertir commits que tocaron una carpeta (sin revertir cambios en otras carpetas)
+### "Devolver" (undo) un commit SOLO en un proyecto/carpeta
 
-Si quieres **deshacer el efecto** de un commit, pero **solo** para una carpeta:
+`git revert` no soporta pathspec directamente para revertir “solo una carpeta”.
+
+La alternativa práctica para deshacer el efecto de un commit `<SHA>` **solo en una carpeta** es:
+
+1) Restaurar esa carpeta al estado del **padre** del commit (lo que equivale a “quitar” los cambios de ese commit en esa carpeta)
 
 ```bash
-git revert <SHA> --no-commit
-# luego limita lo revertido a una carpeta descartando lo demás
-
-git restore --staged --worktree -- .
-# (opcional) en vez de lo anterior, usa un enfoque más seguro:
-# 1) revierte sin commit
-# 2) restaura el resto del repo al estado previo
-# 3) deja solo la carpeta
+git restore --source <SHA>^ -- "<carpeta-del-proyecto>/"
 ```
 
-El método recomendado y más controlable es este (paso a paso):
-
-1) Crea un branch de trabajo:
+2) Commit del rollback solo de esa carpeta:
 
 ```bash
-git switch -c revert-proyectoA
+git add "<carpeta-del-proyecto>/"
+git commit -m "Undo <SHA> changes only in <carpeta-del-proyecto>"
 ```
 
-2) Revertir el commit pero sin crear commit aún:
-
-```bash
-git revert <SHA> --no-commit
-```
-
-3) Descartar TODOS los cambios revertidos excepto la carpeta deseada:
-
-```bash
-# descarta todo
-git restore --worktree --staged -- .
-
-# vuelve a aplicar el revert SOLO en la carpeta (desde el índice del revert)
-# alternativa más simple: repite el revert en limpio y extrae solo la carpeta
-```
-
-⚠️ Nota: `git revert` no soporta pathspec de forma directa para "revert solo carpeta".
-
-**Alternativa práctica (recomendada):** restaurar la carpeta desde el commit anterior al que quieres deshacer.
-
-Si quieres "deshacer" el commit `<SHA>` solo en `proyectoA/`, restaura la carpeta usando el padre del commit:
-
-```bash
-git restore --source <SHA>^ -- proyectoA/
-```
-
-y luego commitea:
-
-```bash
-git add proyectoA/
-git commit -m "Undo <SHA> changes only in proyectoA"
-```
-
-### Sacar (checkout) una carpeta desde otra rama o commit
-
-Traer una carpeta desde `master` (u otra rama) sin tocar el resto:
-
-```bash
-git restore --source master -- <carpeta-del-proyecto>/
-```
-
-### "Volver" un proyecto a un punto anterior (varios commits) sin afectar otros
+### Volver un proyecto a un punto anterior (varios commits) sin afectar otros
 
 1) Encuentra el commit objetivo para esa carpeta:
 
 ```bash
-git log -- <carpeta-del-proyecto>/
+git log -- "<carpeta-del-proyecto>/"
 ```
 
 2) Restaura la carpeta a ese commit:
 
 ```bash
-git restore --source <SHA_OBJETIVO> -- <carpeta-del-proyecto>/
+git restore --source <SHA_OBJETIVO> -- "<carpeta-del-proyecto>/"
 ```
 
 3) Confirma solo esa carpeta:
 
 ```bash
-git add <carpeta-del-proyecto>/
+git add "<carpeta-del-proyecto>/"
 git commit -m "Rollback <carpeta-del-proyecto> to <SHA_OBJETIVO>"
 ```
 
-### Reescribir historial SOLO de una carpeta (avanzado)
-
-Si necesitas eliminar/alterar commits históricos de una carpeta (por ejemplo, limpiar secretos) sin tocar el resto del repo, usa **git-filter-repo** (recomendado por Git) o BFG.
-
-Ejemplo: reescribir historial manteniendo solo una carpeta (útil para extraer un proyecto):
+### Traer una carpeta desde otra rama/commit
 
 ```bash
-# requiere instalar git-filter-repo
-# https://github.com/newren/git-filter-repo
-
-git filter-repo --path <carpeta-del-proyecto>/ --force
+git restore --source <rama-o-sha> -- "<carpeta-del-proyecto>/"
 ```
 
-⚠️ Esto reescribe historial y puede requerir force-push. Úsalo solo si sabes lo que haces.
+Ejemplo (traer `StudyBotIA/` desde `master`):
+
+```bash
+git restore --source master -- "StudyBotIA/"
+```
 
 ## Buenas prácticas (recomendadas)
 
 - Mantén cada app con su propio `README.md` dentro de su carpeta.
-- Usa convenciones consistentes para nombres de carpetas.
 - Evita cambios cruzados entre proyectos si no es necesario.
 
 ## Licencia
